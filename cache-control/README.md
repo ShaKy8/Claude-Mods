@@ -14,10 +14,10 @@ If a step reports no usage, the status line is left alone.
 
 ## Install
 
-From a marketplace, typed at the prompt of a Claude Code session (replace `<owner>/<repo>` with the GitHub repository that holds this folder; the repository root has the `.claude-plugin/marketplace.json`):
+From a marketplace, typed at the prompt of a Claude Code session (replace `ShaKy8/Claude-Mods` with the GitHub repository that holds this folder; the repository root has the `.claude-plugin/marketplace.json`):
 
 ```
-/plugin install cache-control --marketplace <owner>/<repo>
+/plugin install cache-control --marketplace ShaKy8/Claude-Mods
 ```
 
 Answer `y` to add the marketplace, then pick a scope.
