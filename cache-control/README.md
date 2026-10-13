@@ -20,7 +20,13 @@ Start Claude Code with the mod's folder loaded:
 claude --plugin-dir ~/Projects/Claude-Mods/cache-control
 ```
 
-To load it in every session, set `CLAUDE_CODE_PLUGIN_DIRS` to the folder instead.
+Or, where no flag can be given, name the folder in `CLAUDE_CODE_PLUGIN_DIRS`: absolute paths (`~` allowed), separated by `:`, set in the environment or in the `env` block of `~/.claude/settings.json`.
+
+```sh
+CLAUDE_CODE_PLUGIN_DIRS=~/Projects/Claude-Mods/cache-control claude
+```
+
+Either way the mod is loaded for that session only; `claude plugin list` shows it as `cache-control@inline`.
 
 ## Develop
 
