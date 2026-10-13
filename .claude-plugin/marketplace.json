@@ -7,14 +7,9 @@
   },
   "plugins": [
     {
-      "name": "cache-control",
-      "source": "./cache-control",
-      "description": "Shows prompt-cache hit rate in the status line after each model step."
-    },
-    {
       "name": "ship",
       "source": "./ship",
-      "description": "Git state in the status line, plus /ship to stage, commit and push in one step."
+      "description": "Git state and prompt-cache hit rate on one status line, plus /ship to stage, commit and push."
     }
   ]
 }

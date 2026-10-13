@@ -1,6 +1,9 @@
 {
   "name": "ship",
-  "version": "0.1.0",
-  "description": "Git state in the status line, plus /ship to stage, commit and push in one step.",
-  "author": { "name": "kyle", "email": "kbshaver@gmail.com" }
+  "version": "0.2.0",
+  "description": "Git state and prompt-cache hit rate on one status line, plus /ship to stage, commit and push.",
+  "author": {
+    "name": "kyle",
+    "email": "kbshaver@gmail.com"
+  }
 }

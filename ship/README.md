@@ -1,6 +1,10 @@
 # ship
 
-Git state in the status line, and `/ship` to stage, commit and push in one step.
+Git state and prompt-cache hit rate on one status line, and `/ship` to stage, commit and push in one step.
+
+```
+/plugin install ship --marketplace ShaKy8/Claude-Mods
+```
 
 ## Status line
 
@@ -13,7 +17,7 @@ Refreshed at session start, after every turn, and after any Bash call that menti
 | `↑2` / `↓1` | 2 commits to push / 1 to pull |
 | `no upstream` | branch has no upstream yet |
 
-Nothing is shown outside a git repository. The status line is a single slot shared with other mods, so the last one to write wins (for example `cache-control`).
+After each model step the line also carries the prompt-cache numbers, e.g. `⎇ main ●3 ↑2 · cache 87% hit · 12000 read · 300 written` (hit rate = cache-read tokens / all input tokens). This replaces the old `cache-control` mod. Outside a git repository only the cache part is shown.
 
 ## `/ship [message]`
 
