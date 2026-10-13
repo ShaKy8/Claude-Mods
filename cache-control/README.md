@@ -14,7 +14,7 @@ If a step reports no usage, the status line is left alone.
 
 ## Install
 
-From a marketplace, typed at the prompt of a Claude Code session (replace `ShaKy8/Claude-Mods` with the GitHub repository that holds this folder; the repository root has the `.claude-plugin/marketplace.json`):
+From the marketplace in this repository, typed at the prompt of a Claude Code session:
 
 ```
 /plugin install cache-control --marketplace ShaKy8/Claude-Mods
