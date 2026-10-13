@@ -44,3 +44,7 @@ claude plugin test .
 ```
 
 `tsc -p .` type-checks the mod once the engine has written `.claude-plugin/types/` (it is git-ignored and regenerated when the mod loads).
+
+## License
+
+MIT. See [LICENSE](../LICENSE).
