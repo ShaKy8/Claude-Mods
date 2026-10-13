@@ -10,6 +10,11 @@
       "name": "ship",
       "source": "./ship",
       "description": "Git state and prompt-cache hit rate on one status line, plus /ship to stage, commit and push."
+    },
+    {
+      "name": "boot-guard",
+      "source": "./boot-guard",
+      "description": "Takes a snapper snapshot before Bash commands that change dkms, kernel modules, limine, the initramfs or boot entries."
     }
   ]
 }
