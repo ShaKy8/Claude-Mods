@@ -1,7 +1,16 @@
 import { test, expect } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
 
 type Call = readonly string[]
 const ok = (stdout = '') => ({ exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
+
+const runShip = ($: Engine, args: string) =>
+  $.command.run({
+    command: 'ship',
+    args,
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
 
 const status = (opts: { upstream?: string; ab?: string; files?: string[] }) =>
   [
@@ -23,7 +32,7 @@ function fakeGit(on: any, stdout: string) {
 
 test('/ship stages, commits with the message and pushes', async ($, on) => {
   const calls = fakeGit(on, status({ upstream: 'origin/main', ab: '+0 -0', files: ['a.ts', 'b.ts'] }))
-  const result = await $.command.run({ command: 'ship', args: 'Fix thing' })
+  const result = await runShip($, 'Fix thing')
 
   expect(calls.map(c => c.slice(0, 2).join(' '))).toContain('git add')
   expect(calls).toContainEqual(['git', 'commit', '-m', 'Fix thing'])
@@ -33,14 +42,14 @@ test('/ship stages, commits with the message and pushes', async ($, on) => {
 
 test('/ship without a message builds one from the file names', async ($, on) => {
   const calls = fakeGit(on, status({ upstream: 'origin/main', ab: '+0 -0', files: ['src/a.ts'] }))
-  await $.command.run({ command: 'ship', args: '' })
+  await runShip($, '')
 
   expect(calls).toContainEqual(['git', 'commit', '-m', 'Update a.ts'])
 })
 
 test('/ship only pushes when the tree is clean but ahead', async ($, on) => {
   const calls = fakeGit(on, status({ upstream: 'origin/main', ab: '+2 -0' }))
-  await $.command.run({ command: 'ship', args: '' })
+  await runShip($, '')
 
   expect(calls.some(c => c[1] === 'commit')).toBe(false)
   expect(calls).toContainEqual(['git', 'push'])
@@ -48,14 +57,14 @@ test('/ship only pushes when the tree is clean but ahead', async ($, on) => {
 
 test('/ship sets the upstream when there is none', async ($, on) => {
   const calls = fakeGit(on, status({ files: ['a.ts'] }))
-  await $.command.run({ command: 'ship', args: 'x' })
+  await runShip($, 'x')
 
   expect(calls).toContainEqual(['git', 'push', '-u', 'origin', 'main'])
 })
 
 test('/ship refuses likely secrets and stages nothing', async ($, on) => {
   const calls = fakeGit(on, status({ upstream: 'origin/main', ab: '+0 -0', files: ['a.ts', '.env'] }))
-  const result = await $.command.run({ command: 'ship', args: 'x' })
+  const result = await runShip($, 'x')
 
   expect(result.text).toContain('refusing to stage likely secrets: .env')
   expect(calls.some(c => c[1] === 'add')).toBe(false)
@@ -63,7 +72,7 @@ test('/ship refuses likely secrets and stages nothing', async ($, on) => {
 
 test('/ship does nothing on a clean, synced tree', async ($, on) => {
   const calls = fakeGit(on, status({ upstream: 'origin/main', ab: '+0 -0' }))
-  const result = await $.command.run({ command: 'ship', args: '' })
+  const result = await runShip($, '')
 
   expect(result.text).toBe('ship: nothing to ship.')
   expect(calls.some(c => c[1] === 'push')).toBe(false)
@@ -76,7 +85,7 @@ test('status line shows branch, changes and ahead count', async ($, on) => {
     return next(e)
   })
   fakeGit(on, status({ upstream: 'origin/main', ab: '+2 -1', files: ['a.ts'] }))
-  await $.command.run({ command: 'ship', args: '' }).catch(() => {})
+  await runShip($, '').catch(() => {})
 
   expect(lines).toContain('⎇ main ●1 ↑2 ↓1')
 })
@@ -100,7 +109,7 @@ test('git and cache hit rate share one status line', async ($, on) => {
   on('turn.step', async function* () {
     return response({ input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 800, cache_creation_input_tokens: 100 })
   })
-  await $.command.run({ command: 'ship', args: '' }).catch(() => {})
+  await runShip($, '').catch(() => {})
 
   const stream = $.turn.step({ turnId: 't1', index: 0, model: 'test-model', messageCount: 1 })
   for await (const _ of stream) { /* drain */ }
@@ -118,7 +127,7 @@ test('no cache part when the step carries no usage', async ($, on) => {
   on('turn.step', async function* () {
     return response(null)
   })
-  await $.command.run({ command: 'ship', args: '' }).catch(() => {})
+  await runShip($, '').catch(() => {})
   const stream = $.turn.step({ turnId: 't1', index: 0, model: 'test-model', messageCount: 1 })
   for await (const _ of stream) { /* drain */ }
 
