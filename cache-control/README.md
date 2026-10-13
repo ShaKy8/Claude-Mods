@@ -14,7 +14,15 @@ If a step reports no usage, the status line is left alone.
 
 ## Install
 
-Start Claude Code with the mod's folder loaded:
+From a marketplace, typed at the prompt of a Claude Code session (replace `<owner>/<repo>` with the GitHub repository that holds this folder; the repository root has the `.claude-plugin/marketplace.json`):
+
+```
+/plugin install cache-control --marketplace <owner>/<repo>
+```
+
+Answer `y` to add the marketplace, then pick a scope.
+
+To run it from a local checkout without installing, start Claude Code with the mod's folder loaded:
 
 ```sh
 claude --plugin-dir ~/Projects/Claude-Mods/cache-control

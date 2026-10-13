@@ -1,0 +1,15 @@
+{
+  "name": "claude-mods",
+  "description": "Claude Code mods by kyle.",
+  "owner": {
+    "name": "kyle",
+    "email": "kbshaver@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "cache-control",
+      "source": "./cache-control",
+      "description": "Shows prompt-cache hit rate in the status line after each model step."
+    }
+  ]
+}
