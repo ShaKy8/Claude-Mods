@@ -1,6 +1,0 @@
-{
-  "name": "cache-control",
-  "version": "0.1.1",
-  "description": "Shows prompt-cache hit rate in the status line after each model step.",
-  "author": { "name": "kyle", "email": "kbshaver@gmail.com" }
-}
