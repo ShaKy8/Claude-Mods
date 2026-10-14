@@ -95,22 +95,13 @@ async function ship(run: Run, message: string) {
   return { text: `ship: ${lines.join('\n')}` }
 }
 
-let gitPart: string | undefined
-let cachePart: string | undefined
-
-function publish($: EngineInterface) {
-  const line = [gitPart, cachePart].filter(Boolean).join(' · ')
-  $.ui.status(line || undefined)
-}
-
 async function refresh($: EngineInterface) {
   try {
     const repo = await inspect(argv => $.process.run(argv))
-    gitPart = repo ? summarize(repo) : undefined
+    $.ui.status(repo ? summarize(repo) : undefined)
   } catch {
-    gitPart = undefined
+    $.ui.status(undefined)
   }
-  publish($)
 }
 
 export const register: Register = on => {
@@ -122,18 +113,6 @@ export const register: Register = on => {
     })
     void refresh($)
     return next(e)
-  })
-
-  on('turn.step', async function* ($, e, next) {
-    const response = yield* next(e)
-    const { usage } = response
-    if (usage) {
-      const total = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
-      const rate = total > 0 ? Math.round((usage.cache_read_input_tokens / total) * 100) : 0
-      cachePart = `cache ${rate}% hit · ${usage.cache_read_input_tokens} read · ${usage.cache_creation_input_tokens} written`
-      publish($)
-    }
-    return response
   })
 
   on('turn.complete', async ($, e, next) => {

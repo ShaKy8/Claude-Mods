@@ -9,7 +9,7 @@
     {
       "name": "ship",
       "source": "./ship",
-      "description": "Git state and prompt-cache hit rate on one status line, plus /ship to stage, commit and push."
+      "description": "Git state in the status line, plus /ship to stage, commit and push in one step."
     },
     {
       "name": "boot-guard",

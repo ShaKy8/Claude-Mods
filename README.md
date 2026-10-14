@@ -4,7 +4,7 @@ Claude Code mods by kyle, published as the `claude-mods` plugin marketplace.
 
 | Plugin | What it does |
 | --- | --- |
-| [ship](ship/README.md) | Git state and prompt-cache hit rate on the status line, plus `/ship` to stage, commit and push. |
+| [ship](ship/README.md) | Git state in the status line, plus `/ship` to stage, commit and push. |
 | [boot-guard](boot-guard/README.md) | Takes a `snapper` snapshot before Bash commands that can change what boots. |
 
 Install one with:
