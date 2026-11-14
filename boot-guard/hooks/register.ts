@@ -17,7 +17,13 @@ const MODPROBE_SAFE = new Set(['-n', '--dry-run', '-c', '--showconfig', '--show-
 const INITRAMFS_SAFE = new Set(['-h', '--help', '-V', '--version', '-L', '--listhooks', '-H', '--hookhelp', '-M', '--automods'])
 const EFI_WRITE = /^(-[a-zA-Z]*[cBoOnNaAtT][a-zA-Z]*|--(create|create-only|delete-bootnum|bootorder|delete-bootorder|bootnext|delete-bootnext|active|inactive|timeout|delete-timeout))$/
 const PACKAGERS = new Set(['pacman', 'yay', 'paru'])
-const WRAPPERS = new Set(['sudo', 'doas', 'env', 'command', 'nohup', 'time', 'exec'])
+const WRAPPERS = new Set(['sudo', 'doas', 'env', 'command', 'nohup', 'time', 'exec', 'nice'])
+const WRAPPER_VALUES: Record<string, Set<string>> = {
+  sudo: new Set(['-u', '-g', '-C', '-D', '-p', '-r', '-t', '-T', '-U', '--user', '--group', '--close-from', '--chdir', '--prompt', '--role', '--type', '--command-timeout', '--other-user']),
+  doas: new Set(['-u', '-C']),
+  env: new Set(['-u', '-C', '--unset', '--chdir']),
+  nice: new Set(['-n', '--adjustment']),
+}
 
 type Segment = { words: string[]; targets: string[] }
 type Slot = 'words' | 'targets' | 'drop' | 'delimiter'
@@ -33,8 +39,28 @@ function bodyEnd(command: string, from: number, delimiter: string): number {
   return command.length
 }
 
-function lex(command: string): Segment[] {
+function substitutionEnd(command: string, from: number): number {
+  let depth = 1
+  let quote = ''
+  for (let i = from; i < command.length; i++) {
+    const c = command[i]!
+    if (quote) {
+      if (c === quote) quote = ''
+      else if (c === '\\' && quote === '"') i++
+    } else if (c === "'" || c === '"') quote = c
+    else if (c === '\\') i++
+    else if (c === '(') depth++
+    else if (c === ')') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return command.length
+}
+
+function lex(command: string): { segments: Segment[]; substitutions: string[] } {
   const segments: Segment[] = []
+  const substitutions: string[] = []
   const delimiters: string[] = []
   let segment: Segment = { words: [], targets: [] }
   let word = ''
@@ -63,7 +89,12 @@ function lex(command: string): Segment[] {
 
   for (let i = 0; i < command.length; i++) {
     const c = command[i]!
-    if (quote) {
+    if (quote !== "'" && command.startsWith('$(', i)) {
+      const end = substitutionEnd(command, i + 2)
+      substitutions.push(command.slice(i + 2, end))
+      add(command.slice(i, end + 1))
+      i = end
+    } else if (quote) {
       if (c === quote) quote = ''
       else if (c === '\\' && quote === '"' && i + 1 < command.length) {
         i++
@@ -110,7 +141,7 @@ function lex(command: string): Segment[] {
     }
   }
   endSegment()
-  return segments
+  return { segments, substitutions }
 }
 
 function writes(cmd: string, args: string[]): boolean {
@@ -119,10 +150,13 @@ function writes(cmd: string, args: string[]): boolean {
 
 function classifyTokens(tokens: string[]): string | null {
   let i = 0
+  let wrapper = ''
   while (i < tokens.length) {
     const t = tokens[i]!
-    if (WRAPPERS.has(t) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t) || (t.startsWith('-') && i > 0)) i++
-    else break
+    if (WRAPPERS.has(t)) wrapper = t
+    else if (t.startsWith('-') && i > 0) i += WRAPPER_VALUES[wrapper]?.has(t) ? 1 : 0
+    else if (!/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) break
+    i++
   }
   const cmd = tokens[i]?.split('/').pop()
   if (!cmd) return null
@@ -152,7 +186,13 @@ function classifyTokens(tokens: string[]): string | null {
 }
 
 function classify(command: string): string | null {
-  for (const { words, targets } of lex(command)) {
+  const { segments, substitutions } = lex(command)
+  for (const inner of substitutions) {
+    const found = classify(inner)
+    if (found) return found
+  }
+
+  for (const { words, targets } of segments) {
     const shell = words.findIndex((w, j) => SHELLS.has(w.split('/').pop()!) && SHELL_COMMAND.test(words[j + 1] ?? ''))
     if (shell >= 0) {
       const found = classify(words[shell + 2] ?? '')

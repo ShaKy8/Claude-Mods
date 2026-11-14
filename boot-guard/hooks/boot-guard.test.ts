@@ -43,6 +43,14 @@ const RISKY = [
   "sudo find /etc/modprobe.d -name '*.bak' -exec rm {} +",
   "sudo tee /etc/modprobe.d/ov9734.conf <<'EOF'\noptions ov9734 x=1\nEOF",
   "bash -lc 'modprobe -r ov9734; modprobe ov9734'",
+  'sudo -u root tee /boot/limine.conf',
+  'sudo -u root modprobe -r ov9734',
+  'sudo -n modprobe -r ov9734',
+  'doas -u root mkinitcpio -P',
+  'nice cp limine.conf /boot/limine.conf',
+  'nice -n 19 cp limine.conf /boot/limine.conf',
+  'echo $(sudo cp limine.conf /boot/limine.conf)',
+  'git commit -m "notes $(sudo mkinitcpio -P)"',
 ]
 
 const SAFE = [
@@ -66,6 +74,10 @@ const SAFE = [
   "find /boot -name '*.conf'",
   'git commit -m "Catch tee writes; also cp into /boot"',
   "cat > notes.md <<'EOF'\nsudo sed -i s/a/b/ /boot/limine.conf\nEOF",
+  'sudo -u root ls /boot',
+  'nice -n 19 grep -rn timeout /boot/limine.conf',
+  "echo '$(sudo cp limine.conf /boot/limine.conf)'",
+  'echo "$(cat /boot/limine.conf)" > /tmp/limine.conf',
 ]
 
 for (const command of RISKY) {
