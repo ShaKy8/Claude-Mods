@@ -32,6 +32,17 @@ const RISKY = [
   'sudo pacman -S linux-headers',
   'sudo pacman -Syu',
   'cd /tmp && sudo rmmod ov9734',
+  'sudo cp limine.conf "/boot/limine.conf"',
+  'sudo install -m644 limine.conf /boot/limine.conf',
+  'sudo sed --in-place "s/a/b/" /etc/mkinitcpio.conf',
+  "printf 'options ov9734 x=1\\n' > /etc/modprobe.d/ov9734.conf",
+  'echo Y >/sys/module/usbcore/parameters/autosuspend',
+  'echo ov9734 | sudo tee -a /etc/modules-load.d/camera.conf > /dev/null',
+  'sudo dd if=limine-bios.sys of=/boot/limine-bios.sys',
+  "sudo find /boot -name '*.old' -delete",
+  "sudo find /etc/modprobe.d -name '*.bak' -exec rm {} +",
+  "sudo tee /etc/modprobe.d/ov9734.conf <<'EOF'\noptions ov9734 x=1\nEOF",
+  "bash -lc 'modprobe -r ov9734; modprobe ov9734'",
 ]
 
 const SAFE = [
@@ -46,6 +57,15 @@ const SAFE = [
   'sudo pacman -S htop',
   'mkinitcpio --listhooks',
   'git commit -m "update dkms notes"',
+  'git commit -m "Catch tee writes to /etc/modprobe.d"',
+  'git commit -m "boot-guard: also catch cp into /boot"',
+  'echo "sudo sed -i s/a/b/ /boot/limine.conf" > notes.txt',
+  'grep -n "install" /etc/mkinitcpio.conf',
+  'grep -rn "rm /boot" docs/',
+  'cat /etc/modprobe.d/blacklist.conf > /tmp/blacklist.conf',
+  "find /boot -name '*.conf'",
+  'git commit -m "Catch tee writes; also cp into /boot"',
+  "cat > notes.md <<'EOF'\nsudo sed -i s/a/b/ /boot/limine.conf\nEOF",
 ]
 
 for (const command of RISKY) {

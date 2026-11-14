@@ -6,7 +6,11 @@ const ACK_MS = 10 * 60 * 1000
 const KERNELISH = /^(linux[a-z0-9._-]*|.*-dkms|dkms|limine[a-z0-9-]*|mkinitcpio[a-z-]*|nvidia[a-z0-9._-]*|.*firmware.*|systemd-boot.*|grub.*)$/
 const PROTECTED =
   /(^|[\s'"=])(\/boot(\/|\s|$|'|")|\/etc\/(modprobe\.d|modules-load\.d|mkinitcpio(\.d|\.conf)|default\/limine|limine[^\s'"]*|kernel\/)|\/sys\/bus\/[^\s'"]*\/(un)?bind|\/sys\/module\/|\/proc\/sys\/kernel)/
-const WRITER = />|\btee\b|\bsed\s+(-\w*i|--in-place)|\b(cp|mv|rm|install|ln|truncate|dd|chattr)\b/
+const WRITERS = new Set(['tee', 'cp', 'mv', 'rm', 'install', 'ln', 'truncate', 'dd', 'chattr'])
+const SED_IN_PLACE = /^(-[a-zA-Z]*i|--in-place)/
+const FIND_RUNS = new Set(['-exec', '-execdir', '-ok', '-okdir'])
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash'])
+const SHELL_COMMAND = /^-[a-zA-Z]*c$/
 
 const DKMS_CHANGES = new Set(['install', 'build', 'add', 'remove', 'autoinstall', 'uninstall', 'unbuild'])
 const MODPROBE_SAFE = new Set(['-n', '--dry-run', '-c', '--showconfig', '--show-config', '-D', '--show-depends', '-R', '--resolve-alias', '-h', '--help', '-V', '--version'])
@@ -15,8 +19,102 @@ const EFI_WRITE = /^(-[a-zA-Z]*[cBoOnNaAtT][a-zA-Z]*|--(create|create-only|delet
 const PACKAGERS = new Set(['pacman', 'yay', 'paru'])
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'command', 'nohup', 'time', 'exec'])
 
-function stripNoise(segment: string): string {
-  return segment.replace(/\d*>&\d+/g, ' ').replace(/\d*>\s*\/dev\/null/g, ' ')
+type Segment = { words: string[]; targets: string[] }
+type Slot = 'words' | 'targets' | 'drop' | 'delimiter'
+
+function bodyEnd(command: string, from: number, delimiter: string): number {
+  let start = from
+  while (start < command.length) {
+    const newline = command.indexOf('\n', start)
+    const stop = newline < 0 ? command.length : newline
+    if (command.slice(start, stop).trim() === delimiter) return stop
+    start = stop + 1
+  }
+  return command.length
+}
+
+function lex(command: string): Segment[] {
+  const segments: Segment[] = []
+  const delimiters: string[] = []
+  let segment: Segment = { words: [], targets: [] }
+  let word = ''
+  let inWord = false
+  let slot: Slot = 'words'
+  let quote = ''
+
+  const add = (c: string) => {
+    word += c
+    inWord = true
+  }
+  const endWord = () => {
+    if (!inWord) return
+    if (slot === 'delimiter') delimiters.push(word)
+    else if (slot !== 'drop') segment[slot].push(word)
+    slot = 'words'
+    word = ''
+    inWord = false
+  }
+  const endSegment = () => {
+    endWord()
+    if (segment.words.length > 0 || segment.targets.length > 0) segments.push(segment)
+    segment = { words: [], targets: [] }
+    slot = 'words'
+  }
+
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]!
+    if (quote) {
+      if (c === quote) quote = ''
+      else if (c === '\\' && quote === '"' && i + 1 < command.length) {
+        i++
+        add(command[i]!)
+      } else add(c)
+    } else if (c === "'" || c === '"') {
+      quote = c
+      inWord = true
+    } else if (c === '\\' && i + 1 < command.length) {
+      i++
+      if (command[i] !== '\n') add(command[i]!)
+    } else if (c === '\n') {
+      endSegment()
+      for (const delimiter of delimiters.splice(0)) i = bodyEnd(command, i + 1, delimiter)
+    } else if (/\s/.test(c)) {
+      endWord()
+    } else if (command.startsWith('&&', i) || command.startsWith('||', i)) {
+      endSegment()
+      i++
+    } else if (c === '>' || command.startsWith('&>', i)) {
+      if (c === '&') i++
+      else if (/^\d+$/.test(word)) {
+        word = ''
+        inWord = false
+      }
+      endWord()
+      while (command[i + 1] === '>' || command[i + 1] === '|') i++
+      if (command[i + 1] === '&') {
+        while (/[&\d-]/.test(command[i + 1] ?? '')) i++
+      } else slot = 'targets'
+    } else if (c === '<') {
+      endWord()
+      if (command.startsWith('<<<', i)) {
+        i += 2
+        slot = 'drop'
+      } else if (command.startsWith('<<', i)) {
+        i += command[i + 2] === '-' ? 2 : 1
+        slot = 'delimiter'
+      } else slot = 'drop'
+    } else if (c === ';' || c === '|' || c === '&') {
+      endSegment()
+    } else {
+      add(c)
+    }
+  }
+  endSegment()
+  return segments
+}
+
+function writes(cmd: string, args: string[]): boolean {
+  return WRITERS.has(cmd) || (cmd === 'sed' && args.some(a => SED_IN_PLACE.test(a)))
 }
 
 function classifyTokens(tokens: string[]): string | null {
@@ -45,25 +143,26 @@ function classifyTokens(tokens: string[]): string | null {
     const hit = op.includes('u') || packages.some(p => KERNELISH.test(p.split('/').pop()!.replace(/-\d.*$/, '')))
     return hit ? 'kernel package' : null
   }
-  return null
+  if (cmd === 'find') {
+    const run = args.findIndex(a => FIND_RUNS.has(a))
+    const changes = args.includes('-delete') || (run >= 0 && writes(args[run + 1]?.split('/').pop() ?? '', args.slice(run + 2)))
+    return changes && args.some(a => PROTECTED.test(a)) ? 'boot config' : null
+  }
+  return writes(cmd, args) && args.some(a => PROTECTED.test(a)) ? 'boot config' : null
 }
 
 function classify(command: string): string | null {
-  for (const raw of command.split(/&&|\|\||[;|\n]/)) {
-    const segment = stripNoise(raw).trim()
-    if (!segment) continue
-
-    const inner = /\b(?:ba|z)?sh\s+-c\s+(['"])([\s\S]*)\1/.exec(segment)
-    if (inner) {
-      const found = classify(inner[2]!)
+  for (const { words, targets } of lex(command)) {
+    const shell = words.findIndex((w, j) => SHELLS.has(w.split('/').pop()!) && SHELL_COMMAND.test(words[j + 1] ?? ''))
+    if (shell >= 0) {
+      const found = classify(words[shell + 2] ?? '')
       if (found) return found
     }
 
-    const tokens = segment.split(/\s+/).map(t => t.replace(/^['"]|['"]$/g, ''))
-    const found = classifyTokens(tokens)
+    const found = classifyTokens(words)
     if (found) return found
 
-    if (WRITER.test(segment) && PROTECTED.test(segment)) return 'boot config'
+    if (targets.some(t => PROTECTED.test(t))) return 'boot config'
   }
   return null
 }
