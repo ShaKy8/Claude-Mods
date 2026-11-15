@@ -20,6 +20,13 @@ A Claude Code plugin marketplace, `claude-mods`, holding the author's mods. A mo
 | `ship` | Git state in the status line (`⎇ main ●3 ↑2`), and `/ship [message]` to stage, commit and push in one step. |
 | `boot-guard` | Takes a `snapper` snapshot before any Bash command that can change what boots, and refuses the command when the snapshot cannot be taken. `/guard-ack` lets such commands through for ten minutes. |
 | `git-guard` | Saves a `git bundle` of the repository into `~/.cache/git-guard` before any Bash command that rewrites or deletes git history (force pushes, `filter-repo`, `reset --hard`, branch and tag deletes), and refuses the command when the bundle cannot be saved or the repository cannot be told from the command. |
+| `liftoff` | Watches GitHub Actions and Vercel after every push, in a row above the prompt. Own repository: `ShaKy8/liftoff`. |
+| `twin` | Keeps a public mirror in step with its private source: export, review, commit, push. Own repository: `ShaKy8/twin`. |
+| `later` | Checks Claude schedules for later, run by systemd, with the verdict in the next session. Own repository: `ShaKy8/later`. |
+| `undertaker` | Claude's `rm` in the home folder moves to the Trash, restorable for 7 days. Own repository: `ShaKy8/undertaker`. |
+| `crash-desk` | Groups this machine's core dumps by signature, says when a crash is a repeat, and keeps crash-free timers. Own repository: `ShaKy8/crash-desk`. |
+
+The last five are listed here but live in their own private repositories, each with its own `CLAUDE.md`, `check.sh`, CI and releases. Their `marketplace.json` entries have a `github` source pinned to a release tag (`"ref": "liftoff--v0.1.1"`), not a folder, so nothing of theirs is in this repository: work on them in their own clones, and only people with access to those repositories can install them. The rules below are for the plugins whose folders are here.
 
 `boot-guard` is written for an Arch-based system: `pacman`/`yay`/`paru`, `mkinitcpio`, `limine`, `dkms`, and the snapper config named `root`.
 
@@ -172,7 +179,7 @@ The existing modules are the style guide. Match them.
 - **Stay quiet.** One status-line entry per plugin: the engine keeps one, a new `$.ui.status` replaces it, and `undefined` removes it, which is what `ship` does outside a git repository. A toast only when something was done. No output for a command that was left alone.
 - **An override expires by itself.** `/guard-ack` lasts ten minutes and lives in memory, so a reload ends it early, which is the safe direction.
 - **Be honest about limits.** `boot-guard` matches command text and sees only Claude's Bash tool, and its README says so under Limits. A change that adds a limit adds it there.
-- **Installable as it stands.** A plugin is installed straight from its folder, so it needs nothing outside it: no dependencies, no generated files, no build output, no code shared with another plugin.
+- **Installable as it stands.** A plugin is installed straight from its folder (one in its own repository, from that repository at its release tag), so it needs nothing outside it: no dependencies, no generated files, no build output, no code shared with another plugin.
 - **A mod that draws** (a pane, a band above the prompt) is not in this repository yet. If one is asked for: elements come from `$.ui.resolve(e)`, state a drawing reads lives in `$.state` under a contract in `types/index.d.ts`, the tree is sized to `e.props.bodyColumns`, and its tests mount it on each surface it claims to support.
 
 ## Mistakes to expect here, and how to avoid each
@@ -209,6 +216,7 @@ Run these in order, and read the output, not only the exit code.
    - a behaviour: the plugin's README, including its tables and its Limits
    - a version: bumped in `plugin.json` when behaviour changed
    - a new plugin: its folder, its `marketplace.json` entry, its row in the root README, its name in the loop in `test.sh`
+   - a plugin in its own repository: its `marketplace.json` entry (a `github` source pinned to its release tag, the description word for word from that repository's `plugin.json`) and its row in the root README, with no folder and no `test.sh` entry. A new release of it moves the entry's `ref` to the new tag.
 6. `git status` shows only the files you meant to change: nothing under `.claude/` or `.claude-plugin/types/`, no scratch files, and no `.js` files in `hooks/`.
 7. Nothing was committed or pushed unless that was asked for.
 8. Your report says what changed, which of these checks you ran with their results, and what you could not verify.

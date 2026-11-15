@@ -20,6 +20,51 @@
       "name": "git-guard",
       "source": "./git-guard",
       "description": "Saves a git bundle of the repository before Bash commands that rewrite or delete git history: force pushes, filter-repo, reset --hard, branch and tag deletes."
+    },
+    {
+      "name": "liftoff",
+      "source": {
+        "source": "github",
+        "repo": "ShaKy8/liftoff",
+        "ref": "liftoff--v0.1.1"
+      },
+      "description": "Watches GitHub Actions and Vercel after every push: a live row above the prompt, a notification when it ends, and the failed log handed to Claude in one press. No model calls."
+    },
+    {
+      "name": "twin",
+      "source": {
+        "source": "github",
+        "repo": "ShaKy8/twin",
+        "ref": "twin--v0.1.0"
+      },
+      "description": "Keeps a public mirror in step with its private source: says when it is behind, runs the export, shows the diff, and commits with the source's message and pushes only on your word."
+    },
+    {
+      "name": "later",
+      "source": {
+        "source": "github",
+        "repo": "ShaKy8/later",
+        "ref": "later--v0.1.0"
+      },
+      "description": "Checks Claude schedules for later, run by systemd so they outlast the session and survive a reboot: a command, a pass rule, and the verdict waiting in your next session."
+    },
+    {
+      "name": "undertaker",
+      "source": {
+        "source": "github",
+        "repo": "ShaKy8/undertaker",
+        "ref": "undertaker--v0.1.0"
+      },
+      "description": "What Claude's rm deletes in your home folder goes to the Trash instead, kept 7 days and restorable with /graveyard. Refuses a delete while a program holds it."
+    },
+    {
+      "name": "crash-desk",
+      "source": {
+        "source": "github",
+        "repo": "ShaKy8/crash-desk",
+        "ref": "crash-desk--v0.1.1"
+      },
+      "description": "Groups this machine's core dumps by signature, says when a crash is a repeat and what was found last time, and keeps crash-free timers in the status line."
     }
   ]
 }
