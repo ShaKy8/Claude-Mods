@@ -4,7 +4,7 @@ set -u
 cd "$(dirname "$0")"
 
 status=0
-for plugin in ship boot-guard; do
+for plugin in ship boot-guard git-guard; do
   echo "=== $plugin"
   (cd "$plugin" && claude plugin test .) || status=1
 done

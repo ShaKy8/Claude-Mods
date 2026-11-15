@@ -6,7 +6,7 @@ Working instructions for any model in this repository. Every claim here was chec
 
 Four facts account for most of the damage a newcomer can do here.
 
-1. **These mods wrap irreversible actions. Never exercise them for real.** `/ship` commits and pushes. `boot-guard` snapshots the root filesystem and gates commands that change what boots. Prove behaviour in the test kit, which fakes git and snapper. Do not run `/ship`, `git push`, `snapper create`, `dkms`, `mkinitcpio`, `limine-*`, `modprobe` or `claude -p "/ship"` to see whether something works.
+1. **These mods wrap irreversible actions. Never exercise them for real.** `/ship` commits and pushes. `boot-guard` snapshots the root filesystem and gates commands that change what boots. `git-guard` writes bundles and gates commands that rewrite git history. Prove behaviour in the test kit, which fakes git and snapper. Do not run `/ship`, `git push`, `git push --force`, `git filter-repo`, `git reset --hard`, `snapper create`, `dkms`, `mkinitcpio`, `limine-*`, `modprobe` or `claude -p "/ship"` to see whether something works.
 2. **The published copies may be running in your own session.** `claude plugin list` shows them as `ship@claude-mods` and `boot-guard@claude-mods`. Unless an entry has a `Read from:` line naming this folder, the session runs the copy installed from GitHub, and your edits here do not change what it does. An installed `boot-guard` also reads every Bash command you run, and it matches text. Up to 0.1.0 it matched any writer word and protected path anywhere in a command, so a commit message that says `also catch cp into /boot`, or an `echo "sed -i ... /boot/limine.conf" > notes.txt`, takes a real snapshot or is refused; `claude plugin list` shows which version is installed. Create files with your file tools instead of shell redirects, and keep such strings out of shell commands. If a command is refused, do not reword it to get past the guard: stop and say so.
 3. **The mod API is early access and changes between Claude Code releases. Look it up; do not recall it.** What you remember as "Claude Code hooks" is probably the settings hooks (`PreToolUse` shell commands in `settings.json`), a different mechanism. The authority is the declaration file the engine writes, `<plugin>/.claude-plugin/types/claude-code/index.d.ts`. It is far too long to read whole: search it for the name at hand (`'tool.call'`, `export type CommandRunInput`, `ProcessRunResult`). If your harness has a `plugin-authoring` skill, load it before editing a hooks module, but ignore its instruction to write mods under `~/.claude/dev-mods/` and its offer to create a repository: here a mod is edited in place, and this repository already is the marketplace.
 4. **Pushing `master` is publishing.** The marketplace is this repository, `ShaKy8/Claude-Mods`. There is no CI and no release step: `origin/master` is what everyone who installed a mod gets at their next update. Commit or push only when asked.
@@ -19,6 +19,7 @@ A Claude Code plugin marketplace, `claude-mods`, holding the author's mods. A mo
 | --- | --- |
 | `ship` | Git state in the status line (`⎇ main ●3 ↑2`), and `/ship [message]` to stage, commit and push in one step. |
 | `boot-guard` | Takes a `snapper` snapshot before any Bash command that can change what boots, and refuses the command when the snapshot cannot be taken. `/guard-ack` lets such commands through for ten minutes. |
+| `git-guard` | Saves a `git bundle` of the repository into `~/.cache/git-guard` before any Bash command that rewrites or deletes git history (force pushes, `filter-repo`, `reset --hard`, branch and tag deletes), and refuses the command when the bundle cannot be saved or the repository cannot be told from the command. |
 
 `boot-guard` is written for an Arch-based system: `pacman`/`yay`/`paru`, `mkinitcpio`, `limine`, `dkms`, and the snapper config named `root`.
 
@@ -50,6 +51,8 @@ export const register: Register = on => {
 
 **`boot-guard/hooks/register.ts`.** `lex(command)` reads the command as the shell would: it honours quotes and backslashes, splits on unquoted `&&`, `||`, `;`, `|`, `&` and new lines, skips heredoc bodies, and returns each segment's words apart from its redirect targets. `classify` looks inside `sh -c '...'` and `$(...)` and returns the reason a segment is risky, or `null`. `classifyTokens` skips wrappers (`sudo`, `env`, `nice`, ...) and their options, `WRAPPER_VALUES` naming the options that take a value (`sudo -u root`), and matches the command name against the rule tables at the top of the file. A segment is `boot config` when it redirects into a protected path (`/boot`, `/etc/modprobe.d`, ...), or when its command writes (`WRITERS`, `sed -i`, `find -delete` or `-exec`) and an argument is a protected path. Text inside a quoted argument is never a command, which is what keeps a commit message or a `grep` pattern from counting. The Bash `tool.call` hook classifies, lets acknowledged commands through, takes the snapshot, then either denies (no snapshot) or shows a toast, pins the undo command in the status line and calls `next`.
 
+**`git-guard/hooks/register.ts`.** `lex(command)` is a smaller copy of boot-guard's: quotes, backslashes, heredoc bodies and redirects, plus the text of each `$(...)` kept with its segment, and a marker segment for each `(` and `)`. `classify(command, cwd, home)` walks the segments in order, follows `cd`, `pushd` and `popd` to know the folder and restores it when a subshell closes, looks inside `sh -c` and `$(...)`, skips shell keywords and wrappers with `commandStart`, reads `git`'s global options (`-C`, `-c`, ...) and asks `gitReason` whether the subcommand is risky. It returns one `Found` (`reason`, `dir`) per risky git command, `dir` being `null` when a variable, glob, `cd -`, an unmatched `popd`, or `GIT_DIR`/`--git-dir`/`--work-tree` hides the repository. The Bash `tool.call` hook denies when any `dir` is `null`, then `save` runs, once per repository (`rev-parse --absolute-git-dir` decides whether there is one; a bare repository is bundled from its git folder): `stash create`, when it succeeds, under a temporary `refs/git-guard/worktree` ref, `bundle create --all`, the ref removed in `finally`, and `prune` keeping the newest ten per repository under thirty days. A failed bundle denies; a saved one gets a toast and the restore command in the status line, then `next`. The session folder comes from `$.session.cwd()`, which follows the Bash tool's `cd`.
+
 **Types.** When the engine loads a plugin from a folder it hot-reloads (`claude --plugin-dir <plugin>` in an interactive session), it writes that build's declarations into `<plugin>/.claude-plugin/types/`. The plugin's `tsconfig.json` extends the `tsconfig.json` in there (`strict`, `noUncheckedIndexedAccess`, `noEmit`). Git ignores the folder, so a fresh clone or a new worktree has none. The first line of `claude-code/index.d.ts` names the Claude Code version that wrote it.
 
 **Tests.** `claude plugin test <plugin>` runs every `*.test.ts` and `*.test.tsx` under the folder against the engine itself, in an environment with no filesystem, network or processes. A test is `test(name, async ($, on) => { ... })`: `$` is the engine with the plugin loaded, and the hooks the test registers with `on` sit beneath every plugin and stand in for the world (git, snapper, the tool that would have run).
@@ -72,6 +75,7 @@ ship/
   tsconfig.json                   extends ./.claude-plugin/types/tsconfig.json
   README.md                       what the mod does, for the person who installs it
 boot-guard/                       the same layout; its tests are hooks/boot-guard.test.ts
+git-guard/                        the same layout; its tests are hooks/git-guard.test.ts
 .claude/skills/prompt-cache-control/   not part of this project (below)
 ```
 
@@ -98,7 +102,7 @@ Run from the repository root.
 - `claude plugin validate <plugin>` prints what the engine sees. Read two lines of it: `calls:` lists the `$` methods the module uses, and each guard must appear under `gating hook with .catch:`, never `without`. Its `ICON_MISSING` warning is expected and fails nothing.
 - `claude plugin test` does not type-check: a test with type errors passes. Only `tsc` finds them. `tsc` prints nothing when the types are right, and `npx` downloads TypeScript the first time.
 - Keep `--noEmit` on the command line. The `noEmit` setting lives in the engine-written `tsconfig.json`, so without the flag a missing types folder makes `tsc` write `register.js` and `<plugin>.test.js` into `hooks/`.
-- `tsc` needs `<plugin>/.claude-plugin/types/`. If it reports `TS5083: Cannot read file '.../.claude-plugin/types/tsconfig.json'`, the folder is missing: ask the person to run `claude --plugin-dir ship --plugin-dir boot-guard` once, which writes it, and report that type-checking was not done. If the first line of `claude-code/index.d.ts` names an older version than `claude --version`, the declarations are stale: `tsc` still runs, but for an API question trust the current build (what `claude plugin validate` reports, or the declarations the `plugin-authoring` skill writes).
+- `tsc` needs `<plugin>/.claude-plugin/types/`. If it reports `TS5083: Cannot read file '.../.claude-plugin/types/tsconfig.json'`, the folder is missing: ask the person to run `claude --plugin-dir ship --plugin-dir boot-guard --plugin-dir git-guard` once, which writes it, and report that type-checking was not done. If the first line of `claude-code/index.d.ts` names an older version than `claude --version`, the declarations are stale: `tsc` still runs, but for an API question trust the current build (what `claude plugin validate` reports, or the declarations the `plugin-authoring` skill writes).
 
 ## How to work on a task
 
@@ -111,7 +115,7 @@ Run from the repository root.
 
 ## Coding rules
 
-The two existing modules are the style guide. Match them.
+The existing modules are the style guide. Match them.
 
 **Layout**
 - One plugin, one folder, one module: `hooks/register.ts`, with its tests beside it as `hooks/<plugin>.test.ts`. Do not split a module this size into files.
@@ -147,7 +151,7 @@ The two existing modules are the style guide. Match them.
 - Assert on the argument vectors the plugin ran and on the text it returned, and assert what must not have happened: `add` never ran, the tool never ran.
 - `$.command.run` takes the whole `CommandRunInput`: `command`, `args`, `origin: { kind: 'composer' }`, `presentation: { isFullscreen: false, columns: 80 }`.
 - Name a test as the behaviour, in a sentence: `'/ship refuses likely secrets and stages nothing'`.
-- `boot-guard`'s tests are two tables, `RISKY` and `SAFE`. Every change to a rule adds the command it must catch to `RISKY` and the nearest look-alike it must leave alone to `SAFE`.
+- `boot-guard`'s and `git-guard`'s tests are two tables each, `RISKY` and `SAFE`. Every change to a rule adds the command it must catch to `RISKY` and the nearest look-alike it must leave alone to `SAFE`.
 
 **Docs and manifests**
 - A plugin's README: the name, one sentence, the install line, the behaviour (a table for a list of cases), its limits if it has any, and `## Develop` with the validate and test commands. No badges, no changelog.
@@ -196,7 +200,7 @@ The two existing modules are the style guide. Match them.
 
 Run these in order, and read the output, not only the exit code.
 
-1. `./test.sh` passes, and new behaviour has a test: the count of passing tests went up, and a `boot-guard` rule has both a `RISKY` and a `SAFE` case.
+1. `./test.sh` passes, and new behaviour has a test: the count of passing tests went up, and a `boot-guard` or `git-guard` rule has both a `RISKY` and a `SAFE` case.
 2. `claude plugin validate <plugin>` passes for each plugin you touched, `calls:` lists what you expect, and every guard is under `gating hook with .catch:`.
 3. `claude plugin validate .` passes, if you touched `marketplace.json` or added a plugin.
 4. `npx --yes -p typescript tsc --noEmit -p <plugin>` prints nothing for each plugin you touched. If the types folder is missing, say that this check was not run.

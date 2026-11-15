@@ -15,6 +15,11 @@
       "name": "boot-guard",
       "source": "./boot-guard",
       "description": "Takes a snapper snapshot before Bash commands that change dkms, kernel modules, limine, the initramfs or boot entries."
+    },
+    {
+      "name": "git-guard",
+      "source": "./git-guard",
+      "description": "Saves a git bundle of the repository before Bash commands that rewrite or delete git history: force pushes, filter-repo, reset --hard, branch and tag deletes."
     }
   ]
 }

@@ -6,6 +6,7 @@ Claude Code mods by kyle, published as the `claude-mods` plugin marketplace.
 | --- | --- |
 | [ship](ship/README.md) | Git state in the status line, plus `/ship` to stage, commit and push. |
 | [boot-guard](boot-guard/README.md) | Takes a `snapper` snapshot before Bash commands that can change what boots. |
+| [git-guard](git-guard/README.md) | Saves a `git bundle` of the repository before Bash commands that rewrite or delete git history. |
 
 Install one with:
 
@@ -27,4 +28,4 @@ claude plugin validate .
 ./test.sh
 ```
 
-It runs the tests in `ship` and `boot-guard` and exits non-zero if either fails. When you add a plugin, add its directory name to the loop in `test.sh`.
+It runs the tests in `ship`, `boot-guard` and `git-guard` and exits non-zero if any fails. When you add a plugin, add its directory name to the loop in `test.sh`.

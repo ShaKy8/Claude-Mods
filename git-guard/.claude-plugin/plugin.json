@@ -1,0 +1,6 @@
+{
+  "name": "git-guard",
+  "version": "0.1.0",
+  "description": "Saves a git bundle of the repository before Bash commands that rewrite or delete git history: force pushes, filter-repo, reset --hard, branch and tag deletes.",
+  "author": { "name": "kyle", "email": "kbshaver@gmail.com" }
+}
